@@ -13,7 +13,7 @@ use std::{
 };
 use zeroize::{ZeroizeOnDrop, Zeroizing};
 
-/// A provider interface between the vault and a crypto box. See libsodium's [secretbox](https://libsodium.gitbook.io/doc/secret-key_cryptography/secretbox) for an example.
+/// A provider interface between the vault and a crypto box. Provides authenticated encryption with associated data (AEAD).
 pub trait BoxProvider: 'static + Sized + Ord + PartialOrd {
     type Error: Debug;
 

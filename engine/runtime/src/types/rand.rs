@@ -3,12 +3,12 @@
 
 use crate::types::*;
 
-use libsodium_sys::randombytes_buf;
+use dryoc::rng::copy_randombytes;
 
-/// A trait for generating random bytes via [`randombytes_buf`].
+/// A trait for generating random bytes via [`dryoc::rng::copy_randombytes`].
 pub unsafe trait Randomized: ContiguousBytes {
     fn randomize(&mut self) {
-        unsafe { randombytes_buf(self.as_mut_bytes().as_mut_ptr() as *mut _, self.as_bytes().len()) }
+        copy_randombytes(self.as_mut_bytes());
     }
 }
 

@@ -17,6 +17,7 @@
 //! - Memory Mapped: anonymous memory is being mapping, the memory address will be randomly selected.
 
 use crate::MemoryError;
+use dryoc::rng;
 use log::*;
 use std::{fmt::Debug, ptr::NonNull};
 use zeroize::Zeroize;
@@ -25,6 +26,33 @@ use zeroize::Zeroize;
 // This is the page size for most linux systems
 pub static FRAG_MIN_DISTANCE: usize = 0x1000;
 const MAX_RETRY_ATTEMPTS: usize = 10;
+
+// Helper function to generate a random usize
+fn random_usize() -> usize {
+    let mut bytes = [0u8; std::mem::size_of::<usize>()];
+    rng::copy_randombytes(&mut bytes);
+    usize::from_ne_bytes(bytes)
+}
+
+// Helper function to generate a random usize in the range [min, max)
+fn random_range_usize(min: usize, max: usize) -> usize {
+    if min >= max {
+        return min;
+    }
+    let range = max - min;
+    min + (random_usize() % range)
+}
+
+// Helper function to generate a random offset aligned to the specified alignment
+fn random_aligned_offset(max_offset: usize, alignment: usize) -> usize {
+    if max_offset == 0 {
+        return 0;
+    }
+    // Generate random offset and align it down
+    let offset = random_usize() % (max_offset + 1);
+    // Round down to nearest aligned address
+    offset - (offset % alignment)
+}
 
 /// Fragmenting strategy to allocate memory at random addresses.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -213,9 +241,6 @@ where
 
         let size = std::mem::size_of::<T>();
 
-        use random::{thread_rng, Rng};
-        let mut rng = thread_rng();
-
         const DEFAULT_MEMORY_PAGE_SIZE: nix::libc::c_long = 0x1000;
 
         let pagesize = nix::unistd::sysconf(nix::unistd::SysconfVar::PAGE_SIZE)
@@ -226,7 +251,8 @@ where
 
         unsafe {
             let mut addr: usize = if let Some(cfg) = config {
-                let offset = rng.gen_range(100..10000) * pagesize;
+                // Generate random offset multiplier in range [100, 10000)
+                let offset = random_range_usize(100, 10000) * pagesize;
                 cfg.last_address + offset
             } else {
                 0
@@ -237,7 +263,7 @@ where
             // the maximum size of the mapping
             let max_alloc_size = 0xFFFFFF;
 
-            let desired_alloc_size: usize = rng.gen_range(size..=max_alloc_size);
+            let desired_alloc_size: usize = random_range_usize(size, max_alloc_size + 1);
 
             info!("prealloc: desired alloc size 0x{:08X}", desired_alloc_size);
 
@@ -363,9 +389,6 @@ where
 
     #[cfg(any(target_os = "linux", target_os = "macos"))]
     fn alloc(_config: Option<FragConfig>) -> Result<Frag<T>, Self::Error> {
-        use random::{thread_rng, Rng};
-        let mut rng = thread_rng();
-
         let actual_size = std::mem::size_of::<T>();
 
         let min = 0xFFFF;
@@ -374,7 +397,7 @@ where
         // We allocate a sufficiently "large" chunk of memory. A random
         // offset will be added to the returned pointer and the object will be written.
         unsafe {
-            let alloc_size = rng.gen::<usize>().min(min).max(max);
+            let alloc_size = random_usize().min(min).max(max);
             let mem_ptr = {
                 // allocate some randomly sized chunk of memory
                 let c_ptr = libc::malloc(alloc_size);
@@ -397,8 +420,9 @@ where
                 c_ptr
             };
 
-            // we are searching for some address in between
-            let offset = rng.gen::<usize>().min(max - actual_size);
+            // we are searching for some address in between, ensuring alignment
+            let max_offset = if max > actual_size { max - actual_size } else { 0 };
+            let offset = random_aligned_offset(max_offset, std::mem::align_of::<T>());
             let actual_mem = ((mem_ptr as usize) + offset) as *mut T;
             actual_mem.write(T::default());
 

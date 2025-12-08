@@ -10,7 +10,6 @@ use iota_stronghold::{
     procedures::{Curve, Ed25519Sign, GenerateKey, KeyType, PublicKey, Slip10Derive, Slip10Generate, WriteVault},
     Client, KeyProvider, Location, SnapshotPath, Stronghold,
 };
-use log::*;
 use thiserror::Error as DeriveError;
 use zeroize::Zeroizing;
 

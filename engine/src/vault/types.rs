@@ -3,8 +3,6 @@
 
 use std::mem;
 
-pub use transactions::{DataTransaction, SealedBlob, SealedTransaction};
-
 pub mod transactions;
 pub mod utils;
 

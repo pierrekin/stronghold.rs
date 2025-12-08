@@ -4,6 +4,8 @@
 // No std maybe for later
 // #![no_std]
 
+#![feature(allocator_api)]
+
 mod boxed;
 pub mod locked_memory;
 pub mod memories;
