@@ -424,14 +424,14 @@ where
     }
 
     #[cfg(target_os = "windows")]
-    fn alloc(config: Option<FragConfig>) -> Result<Frag<T>, Self::Error> {
+    fn alloc(_config: Option<FragConfig>) -> Result<Frag<T>, Self::Error> {
         use windows::Win32::System::Memory::{VirtualAlloc, MEM_COMMIT, MEM_RESERVE, PAGE_READWRITE};
 
         unsafe {
             let actual_size = std::mem::size_of::<T>();
 
             let actual_mem = VirtualAlloc(
-                std::ptr::null_mut(),
+                std::ptr::null(),
                 actual_size,
                 MEM_COMMIT | MEM_RESERVE,
                 PAGE_READWRITE,
@@ -510,7 +510,7 @@ fn dealloc_direct(ptr: *mut libc::c_void) -> Result<(), MemoryError> {
 
     unsafe {
         // VirtualFree returns 0/FALSE if the function fails
-        let res = VirtualFree(ptr, 0, windows::Win32::System::Memory::MEM_RELEASE).as_bool();
+        let res = VirtualFree(ptr as *mut _, 0, windows::Win32::System::Memory::MEM_RELEASE).as_bool();
         if !res {
             if let Err(e) = last_error() {
                 return Err(e);
